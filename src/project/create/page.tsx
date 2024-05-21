@@ -12,8 +12,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { createPromiseClient } from "@connectrpc/connect";
-import { CampaignManagerService } from "@/lib/proto/cm/v1/cm_connect";
 import { catchError, transport } from "@/lib/utils.ts";
 import { toast } from "sonner";
 
@@ -21,8 +19,6 @@ type Project = {
   projectName: string;
   csvFilePath: string;
 };
-
-const client = createPromiseClient(CampaignManagerService, transport);
 
 export function CreateProjectPage() {
   const form = useForm<Project>({
@@ -34,18 +30,18 @@ export function CreateProjectPage() {
 
   function onSubmit(data: Project) {
     console.log(data);
-    client
-      .newProject({
-        projectName: data.projectName,
-        csvFilePath: data.csvFilePath,
-      })
-      .then((response) => {
-        console.log(response);
-      })
-      .catch((error) => {
-        toast.error(`Error encountered while creating project: ${error}`);
-        console.error(error);
-      });
+    // client
+    //   .newProject({
+    //     projectName: data.projectName,
+    //     csvFilePath: data.csvFilePath,
+    //   })
+    //   .then((response) => {
+    //     console.log(response);
+    //   })
+    //   .catch((error) => {
+    //     toast.error(`Error encountered while creating project: ${error}`);
+    //     console.error(error);
+    //   });
   }
 
   return (

@@ -41,7 +41,7 @@ export interface paths {
     };
   };
   "/fileTree": {
-    /** List files and folders in root (/) */
+    /** List paths in root */
     get: {
       responses: {
         /** @description Success */
@@ -52,7 +52,7 @@ export interface paths {
         };
       };
     };
-    /** Add new file or folder */
+    /** Add new path */
     post: {
       requestBody?: {
         content: {
@@ -60,13 +60,14 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Path created. */
+        /** @description Path created */
         201: {
           content: {
             "application/json": components["schemas"]["FileTreePath"];
           };
         };
-        /** @description Path already exists. */
+        400: components["responses"]["NonLocalPath"];
+        /** @description Path already exists */
         409: {
           content: {
             "application/json": components["schemas"]["Error"];
@@ -76,7 +77,7 @@ export interface paths {
     };
   };
   "/fileTree/{path}": {
-    /** List files and folders in the given path */
+    /** List nested paths */
     get: {
       parameters: {
         path: {
@@ -90,9 +91,11 @@ export interface paths {
             "application/json": components["schemas"]["FileTreeEntry"][];
           };
         };
+        400: components["responses"]["NonLocalPath"];
+        404: components["responses"]["PathNotFound"];
       };
     };
-    /** Delete files or folders */
+    /** Delete path */
     delete: {
       parameters: {
         path: {
@@ -100,14 +103,19 @@ export interface paths {
         };
       };
       responses: {
-        /** @description Success with no content */
-        204: {
-          content: never;
+        /** @description Success */
+        200: {
+          content: {
+            "application/json": components["schemas"]["FileTreePath"];
+          };
         };
-        /** @description Non-existing path */
-        404: {
-          content: never;
-        };
+        400: components["responses"]["NonLocalPath"];
+        404: components["responses"]["PathNotFound"];
+      };
+    };
+    parameters: {
+      path: {
+        path: string;
       };
     };
   };
@@ -126,14 +134,8 @@ export interface paths {
             "plain/text": string;
           };
         };
-        /** @description No plain/text file requested */
-        400: {
-          content: never;
-        };
-        /** @description Non-existing path */
-        404: {
-          content: never;
-        };
+        400: components["responses"]["BadRequest"];
+        404: components["responses"]["PathNotFound"];
       };
     };
     /** Update file */
@@ -153,14 +155,8 @@ export interface paths {
         200: {
           content: never;
         };
-        /** @description No plain/text file requested */
-        400: {
-          content: never;
-        };
-        /** @description Non-existing path */
-        404: {
-          content: never;
-        };
+        400: components["responses"]["BadRequest"];
+        404: components["responses"]["PathNotFound"];
       };
     };
   };
@@ -183,7 +179,26 @@ export interface components {
       message: string;
     };
   };
-  responses: never;
+  responses: {
+    /** @description Non local path */
+    NonLocalPath: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Path not found */
+    PathNotFound: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+    /** @description Bad request ("Non local path." or "Not plain/text file.") */
+    BadRequest: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
+  };
   parameters: never;
   requestBodies: never;
   headers: never;

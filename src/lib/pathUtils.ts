@@ -20,15 +20,11 @@ function getContainingFolder(filePath: string): string {
     );
   }
 
-  // Handle the case where the last slash is at the beginning
-  if (lastSlashIndex === 0) {
-    return "/";
-  }
-
   // Extract the containing folder
   const containingFolder = trimmedPath.substring(0, lastSlashIndex);
 
-  return containingFolder;
+  // Return the containing folder, or root if empty
+  return containingFolder || "/";
 }
 
 export { getContainingFolder };

@@ -1,4 +1,3 @@
-// pathUtils.test.ts
 import { getContainingFolder } from "./pathUtils";
 
 describe("getContainingFolder", () => {
@@ -25,10 +24,8 @@ describe("getContainingFolder", () => {
   });
 
   test("should return the containing folder for a path with a trailing slash", () => {
-    expect(getContainingFolder("/folder/subfolder/")).toBe("/folder/subfolder");
-    expect(getContainingFolder("C:\\folder\\subfolder\\")).toBe(
-      "C:/folder/subfolder",
-    );
+    expect(getContainingFolder("/folder/subfolder/")).toBe("/folder");
+    expect(getContainingFolder("C:\\folder\\subfolder\\")).toBe("C:/folder");
   });
 
   test("should throw an error for an empty path", () => {

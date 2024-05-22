@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getContainingFolder } from "@/lib/pathUtils.ts";
 
 // function fileTreeReducer(state: FileTreeState, action: FileTreeAction): FileTreeState {
 //     switch (action.type) {
@@ -138,14 +139,28 @@ function AddFolderForm({
     onSuccess: (path) => {
       toast.success(`Path created successfully: ${path}`);
 
-      const containingFolder = getContainingFolder(path);
-      const folder = tree.get(containingFolder) as Folder;
-      folder.childPaths?.push(path);
+      const containingFolderPath: string = getContainingFolder(path);
+      const containingFolder = tree.get(containingFolderPath);
 
-      onUpdateFolder(path, [
-        folder,
-        { type: "folder", path: path, isFolded: true, childPaths: [] },
-      ]);
+      if (
+        containingFolder === undefined ||
+        containingFolder.type !== "folder"
+      ) {
+        throw new Error("Error in folder logic");
+      }
+
+      // add new path to containing folder
+      containingFolder.childPaths?.push(path);
+
+      const newFolder: Folder = {
+        type: "folder",
+        path: path,
+        isFolded: true,
+        childPaths: [],
+      };
+
+      onUpdateFolder(containingFolderPath, [containingFolder, newFolder]);
+
       form.reset();
     },
   });
@@ -192,9 +207,11 @@ function AddFolderForm({
 
 function AddPathDialog({
   path,
+  tree,
   onUpdateFolder,
 }: {
   path: string;
+  tree: Map<string, Folder | File>;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
 }) {
   return (
@@ -213,7 +230,11 @@ function AddPathDialog({
             </code>
           </DialogTitle>
           <div className="flex flex-col gap-8 py-4">
-            <AddFolderForm path={path} onUpdateFolder={onUpdateFolder} />
+            <AddFolderForm
+              path={path}
+              tree={tree}
+              onUpdateFolder={onUpdateFolder}
+            />
             <div className="flex flex-col gap-2">
               <Label htmlFor="file" className="text-left">
                 File
@@ -289,14 +310,16 @@ function ModifyPathDialog({ path }: { path: string }) {
 
 function FolderMenu({
   path,
+  tree,
   onUpdateFolder,
 }: {
   path: string;
+  tree: Map<string, Folder | File>;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
 }) {
   return (
     <div className="invisible flex flex-row items-center gap-1 group-hover:visible">
-      <AddPathDialog path={path} onUpdateFolder={onUpdateFolder} />
+      <AddPathDialog path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
       <ModifyPathDialog path={path} />
     </div>
   );
@@ -379,16 +402,18 @@ async function getFileTree(path: string, signal?: AbortSignal) {
   }
 
   return data.map((entry): File | Folder => {
+    // the returned path does not contain a leading slash. We add that here.
+    const entryPath = "/" + entry.path;
     if (entry.isDir) {
       return {
         type: "folder",
-        path: entry.path,
+        path: entryPath,
         isFolded: true,
       };
     } else {
       return {
         type: "file",
-        path: entry.path,
+        path: entryPath,
       };
     }
   });
@@ -436,7 +461,7 @@ function FileTreeFolder({
           />
           <div>{folderName}</div>
         </div>
-        <FolderMenu path={path} onUpdateFolder={onUpdateFolder} />
+        <FolderMenu path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
       </li>
     );
   }
@@ -458,7 +483,7 @@ function FileTreeFolder({
             />
             {folderName}
           </div>
-          <FolderMenu path={path} onUpdateFolder={onUpdateFolder} />
+          <FolderMenu path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
         </li>
         <ul className="pl-4">
           {folder.childPaths?.map((entry) => {
@@ -516,11 +541,9 @@ function FileTree({
   function handleUpdateFolder(path: string, data: (File | Folder)[]) {
     console.log("handleUpdateFolder", path, data);
 
-    const root = path === "/" ? path : path + "/";
     const folder = tree.get(path) as Folder;
 
     data.forEach((e) => {
-      e.path = root + e.path;
       tree.set(e.path, e);
     });
 

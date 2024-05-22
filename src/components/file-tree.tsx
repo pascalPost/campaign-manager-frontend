@@ -113,9 +113,11 @@ const folderNameSchema = z.object({
 
 function AddFolderForm({
   path,
+  tree,
   onUpdateFolder,
 }: {
   path: string;
+  tree: Map<string, Folder | File>;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
 }) {
   const form = useForm<z.infer<typeof folderNameSchema>>({
@@ -127,7 +129,7 @@ function AddFolderForm({
 
   const mutation = useMutation({
     mutationFn: (filePath: string) => {
-      const data = postFileTree(filePath, true);
+      const data = postFileTree(filePath, true).then((data) => "/" + data);
       return data;
     },
     onError: (e) => {
@@ -135,7 +137,15 @@ function AddFolderForm({
     },
     onSuccess: (path) => {
       toast.success(`Path created successfully: ${path}`);
-      onUpdateFolder(path, [{ type: "folder", path: path, isFolded: true }]);
+
+      const containingFolder = getContainingFolder(path);
+      const folder = tree.get(containingFolder) as Folder;
+      folder.childPaths?.push(path);
+
+      onUpdateFolder(path, [
+        folder,
+        { type: "folder", path: path, isFolded: true, childPaths: [] },
+      ]);
       form.reset();
     },
   });
@@ -153,7 +163,6 @@ function AddFolderForm({
       }
     }
 
-    console.log(`Adding path: ${newPath}`);
     mutation.mutate(newPath);
   }
 
@@ -505,6 +514,8 @@ function FileTree({
   }
 
   function handleUpdateFolder(path: string, data: (File | Folder)[]) {
+    console.log("handleUpdateFolder", path, data);
+
     const root = path === "/" ? path : path + "/";
     const folder = tree.get(path) as Folder;
 
@@ -515,6 +526,7 @@ function FileTree({
 
     folder.childPaths = data.map((e) => e.path);
 
+    console.log("new map", tree);
     setTree(new Map(tree));
   }
 

@@ -13,33 +13,35 @@ async function getUsers() {
     if (!response.data) {
       throw new Error(response.status.toString());
     }
-    return JSON.stringify(response.data);
+    return response.data;
   } catch (error) {
     console.log(error);
   }
 }
 
 function Users() {
-  const { isLoading } = useQuery("users", getUsers);
+  const { isLoading, data } = useQuery("users", getUsers);
 
   if (isLoading) {
     return <div>Loading Users...</div>;
   }
 
-  return <div>Users</div>;
+  if (!data) {
+    return <div>Failed to load users</div>;
+  }
 
-  // return (
-  //   <>
-  //     <div>Users</div>
-  //     <ul>
-  //       {users.map((user) => (
-  //         <li key={user.id}>
-  //           <div>Name: {user.name}</div>
-  //         </li>
-  //       ))}
-  //     </ul>
-  //   </>
-  // );
+  return (
+    <>
+      <div>Users</div>
+      <ul>
+        {data.map((user) => (
+          <li key={user.id}>
+            <div>Name: {user.name}</div>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
 }
 
 export { Users, type User };

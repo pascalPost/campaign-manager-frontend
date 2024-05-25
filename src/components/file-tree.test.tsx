@@ -7,9 +7,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 
 import { FileTree } from "@/components/file-tree.tsx";
 import { http, HttpResponse } from "msw";
-import { describe, it, expect } from "vitest";
-
-// import fetch from "node-fetch";
+import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 
 // export const handlers = [
 //   http.get("/some/request", ({ request }) => {
@@ -34,21 +32,22 @@ const server = setupServer();
 // );
 // }),
 
-server.events.on("request:start", ({ request }) => {
-  console.log("Outgoing:", request.method, request.url);
-});
+// server.events.on("request:start", ({ request }) => {
+//   console.log("Outgoing:", request.method, request.url);
+// });
 
-// beforeAll(() =>
-//   server.listen({
-//     onUnhandledRequest: (request) => {
-//       throw new Error(
-//         `No request handler found for ${request.method} ${request.url}`,
-//       );
-//     },
-//   }),
-// );
-// afterEach(() => server.resetHandlers());
-// afterAll(() => server.close());
+beforeAll(() =>
+  server.listen({
+    onUnhandledRequest: (request) => {
+      console.log("Unhandled request", request.method, request.url);
+      throw new Error(
+        `No request handler found for ${request.method} ${request.url}`,
+      );
+    },
+  }),
+);
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
 
 describe("FileTree", () => {
   it("renders the root on start", () => {
@@ -112,18 +111,8 @@ describe("FileTree", () => {
     );
 
     const expandButton = screen.getByTestId("fold-icon_/");
-
-    console.log(prettyDOM(expandButton));
-
     await user.click(expandButton);
 
-    // await waitFor(() => {
-    //   screen.debug();
-    //   screen.getByText("folder");
-    // });
-
-    // act(() => {
-    //   fireEvent.click(expandButton);
-    // });
+    expect(screen.getByText("folder")).toBeInTheDocument();
   });
 });

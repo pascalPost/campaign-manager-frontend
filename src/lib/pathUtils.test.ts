@@ -1,4 +1,5 @@
 import { getContainingFolder } from "./pathUtils";
+import { describe, expect, test } from "vitest";
 
 describe("getContainingFolder", () => {
   test("should return the containing folder for a Unix-like path", () => {

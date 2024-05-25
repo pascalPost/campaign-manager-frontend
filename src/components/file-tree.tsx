@@ -31,18 +31,19 @@ import {
   FormMessage,
 } from "@/components/ui/form.tsx";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+// import {
+//   AlertDialog,
+//   AlertDialogAction,
+//   AlertDialogCancel,
+//   AlertDialogContent,
+//   AlertDialogDescription,
+//   AlertDialogFooter,
+//   AlertDialogHeader,
+//   AlertDialogTitle,
+//   AlertDialogTrigger,
+// } from "@/components/ui/alert-dialog";
 import { getContainingFolder } from "@/lib/pathUtils.ts";
+import { components } from "@/lib/api/v1";
 
 // function fileTreeReducer(state: FileTreeState, action: FileTreeAction): FileTreeState {
 //     switch (action.type) {
@@ -133,7 +134,7 @@ function AddFolderForm({
       const data = postFileTree(filePath, true).then((data) => "/" + data);
       return data;
     },
-    onError: (e) => {
+    onError: (e: components["schemas"]["Error"]) => {
       toast.error(`Error on folder creation: ${e.message}`);
     },
     onSuccess: (path) => {
@@ -419,20 +420,16 @@ async function getFileTree(path: string, signal?: AbortSignal) {
   });
 }
 
-function FileTreeFolder({
-  path,
-  tree,
-  onChangeFold,
-  onUpdateFolder,
-  selectedFileProps,
-}: {
+type FileTreeFolderProps = {
   path: string;
   tree: Map<string, Folder | File>;
   onChangeFold: (path: string, state: boolean) => void;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
   selectedFileProps: SelectedFileProps;
-}) {
-  const folder = tree.get(path) as Folder;
+};
+
+function FileTreeFolder(props: FileTreeFolderProps) {
+  const folder = props.tree.get(props.path) as Folder;
   const isFolded = folder.isFolded;
 
   const query = useQuery({
@@ -445,7 +442,7 @@ function FileTreeFolder({
 
   useEffect(() => {
     if (query.data) {
-      onUpdateFolder(path, query.data);
+      props.onUpdateFolder(props.path, query.data);
     }
   }, [query.data]);
 
@@ -456,22 +453,30 @@ function FileTreeFolder({
       <li className="group flex h-7 w-full flex-row justify-between">
         <div className="flex flex-row items-center">
           <ChevronRight
+            data-testid={`fold-icon_${folderName}`}
             className="h-4 w-4 hover:cursor-pointer"
-            onClick={() => onChangeFold(path, false)}
+            onClick={() => props.onChangeFold(props.path, false)}
           />
           <div>{folderName}</div>
         </div>
-        <FolderMenu path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
+        <FolderMenu
+          path={props.path}
+          tree={props.tree}
+          onUpdateFolder={props.onUpdateFolder}
+        />
       </li>
     );
   }
 
   if (query.isLoading) return "Loading...";
 
-  if (query.isError) return "Error.";
+  if (query.isError) {
+    const error = query.error as components["schemas"]["Error"];
+    return `Error: ${error.message}`;
+  }
 
   if (query.isSuccess) {
-    const folder = tree.get(path) as Folder;
+    const folder = props.tree.get(props.path) as Folder;
 
     return (
       <>
@@ -479,22 +484,26 @@ function FileTreeFolder({
           <div className="flex flex-row items-center">
             <ChevronDown
               className="h-4 w-4 hover:cursor-pointer"
-              onClick={() => onChangeFold(path, true)}
+              onClick={() => props.onChangeFold(props.path, true)}
             />
             {folderName}
           </div>
-          <FolderMenu path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
+          <FolderMenu
+            path={props.path}
+            tree={props.tree}
+            onUpdateFolder={props.onUpdateFolder}
+          />
         </li>
         <ul className="pl-4">
           {folder.childPaths?.map((entry) => {
-            const res = tree.get(entry);
+            const res = props.tree.get(entry);
             if (!res) return;
             if (res.type === "file") {
               return (
                 <FileTreeFile
                   key={entry}
                   file={res}
-                  selectedFileProps={selectedFileProps}
+                  selectedFileProps={props.selectedFileProps}
                 />
               );
             }
@@ -503,10 +512,10 @@ function FileTreeFolder({
                 <FileTreeFolder
                   key={entry}
                   path={entry}
-                  tree={tree}
-                  onChangeFold={onChangeFold}
-                  onUpdateFolder={onUpdateFolder}
-                  selectedFileProps={selectedFileProps}
+                  tree={props.tree}
+                  onChangeFold={props.onChangeFold}
+                  onUpdateFolder={props.onUpdateFolder}
+                  selectedFileProps={props.selectedFileProps}
                 />
               );
             }
@@ -517,11 +526,11 @@ function FileTreeFolder({
   }
 }
 
-function FileTree({
-  selectedFileProps,
-}: {
+type FileTreeProps = {
   selectedFileProps: SelectedFileProps;
-}) {
+};
+
+function FileTree(props: FileTreeProps) {
   // TODO: enhance with immer
   const [tree, setTree] = useState(
     new Map<string, Folder | File>([
@@ -562,7 +571,7 @@ function FileTree({
           tree={tree}
           onChangeFold={handleChangeFold}
           onUpdateFolder={handleUpdateFolder}
-          selectedFileProps={selectedFileProps}
+          selectedFileProps={props.selectedFileProps}
         />
       </ul>
     </>

@@ -9,11 +9,18 @@
  * you don't want to deal with this.
  */
 
-const { TextDecoder, TextEncoder } = require('node:util')
+const { ReadableStream } = require('node:stream/web');
+
+const { performance } = require("node:perf_hooks");
+// const { TextDecoder, TextEncoder } = require('node:util')
+const { clearImmediate } = require("node:timers");
 
 Object.defineProperties(globalThis, {
-  TextDecoder: { value: TextDecoder },
-  TextEncoder: { value: TextEncoder },
+//   TextDecoder: { value: TextDecoder },
+//   TextEncoder: { value: TextEncoder },
+  performance: { value: performance },
+  clearImmediate: { value: clearImmediate },
+  ReadableStream: { value: ReadableStream },
 })
 
 const { Blob, File } = require('node:buffer')

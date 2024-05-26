@@ -1,4 +1,4 @@
-import { prettyDOM, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 
@@ -7,34 +7,31 @@ import { QueryClient, QueryClientProvider } from "react-query";
 
 import { FileTree } from "@/components/file-tree.tsx";
 import { http, HttpResponse } from "msw";
-import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-// export const handlers = [
-//   http.get("/some/request", ({ request }) => {
-//     console.log("Handler", request.method, request.url);
-//
-//     // The rest of the response resolver here.
-//   }),
-// ];
-
-const server = setupServer();
-// http.get("http://localhost:3000/*", () => {
-//   console.log("GET /*");
-// }),
-// http.get("http://localhost:3000/fileTree", () => {
-//   console.log("GET /fileTree");
-// return HttpResponse.json(
-//   {
-//     path: "folder",
-//     isDir: true,
-//   },
-//   { status: 200 },
-// );
-// }),
-
-// server.events.on("request:start", ({ request }) => {
-//   console.log("Outgoing:", request.method, request.url);
-// });
+const server = setupServer(
+  http.get("http://localhost:3000/fileTree", () => {
+    return HttpResponse.json(
+      [
+        { path: "/folder", isDir: true },
+        { path: "/file", isDir: false },
+      ],
+      { status: 200 },
+    );
+  }),
+  http.get("http://localhost:3000/fileTree/folder", () => {
+    return HttpResponse.json(
+      [
+        { path: "/folder/nestedFolder", isDir: true },
+        { path: "/folder/nestedFile", isDir: false },
+      ],
+      { status: 200 },
+    );
+  }),
+  http.delete("http://localhost:3000/fileTree/folder", () => {
+    return HttpResponse.json({ path: "/folder" }, { status: 200 });
+  }),
+);
 
 beforeAll(() =>
   server.listen({
@@ -64,14 +61,9 @@ describe("FileTree", () => {
       </QueryClientProvider>,
     );
 
-    // Query for all li elements
-    const listItemElements = screen.getAllByRole("listitem");
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
 
-    // Ensure there is exactly one li element
-    expect(listItemElements).toHaveLength(1);
-
-    // Optionally, check the contents of the li element
-    expect(listItemElements[0]).toContainElement(screen.getByText("/"));
+    expect(screen.getAllByText("/")).toHaveLength(1);
   });
 
   it("renders the root sub-paths when the root node is expanded", async () => {
@@ -92,27 +84,92 @@ describe("FileTree", () => {
       </QueryClientProvider>,
     );
 
-    server.use(
-      //   http.get("http://localhost:3000/*", () => {
-      //     console.log("GET /*");
-      //   }),
-      http.get("http://localhost:3000/fileTree", () => {
-        console.log("GET /fileTree");
-        return HttpResponse.json(
-          [
-            {
-              path: "folder",
-              isDir: true,
-            },
-          ],
-          { status: 200 },
-        );
-      }),
+    await user.click(screen.getByTestId("icon-foldedPathState-/"));
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+
+    expect(screen.getAllByText("/")).toHaveLength(1);
+    expect(screen.getAllByText("folder")).toHaveLength(1);
+    expect(screen.getAllByText("file")).toHaveLength(1);
+  });
+
+  it("renders nested folder content", async () => {
+    const user = userEvent.setup();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FileTree
+          selectedFileProps={{
+            selectedFile: "",
+            handleChangeSelectedFile: (_: string) => {},
+          }}
+        />
+        ,
+      </QueryClientProvider>,
     );
 
-    const expandButton = screen.getByTestId("fold-icon_/");
-    await user.click(expandButton);
+    await user.click(screen.getByTestId("icon-foldedPathState-/"));
+    await user.click(screen.getByTestId("icon-foldedPathState-/folder"));
 
-    expect(screen.getByText("folder")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+
+    expect(screen.getAllByText("/")).toHaveLength(1);
+    expect(screen.getAllByText("folder")).toHaveLength(1);
+    expect(screen.getAllByText("file")).toHaveLength(1);
+    expect(screen.getAllByText("nestedFolder")).toHaveLength(1);
+    expect(screen.getAllByText("nestedFile")).toHaveLength(1);
   });
+
+  it("allows to delete paths in the root", async () => {
+    const user = userEvent.setup();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FileTree
+          selectedFileProps={{
+            selectedFile: "",
+            handleChangeSelectedFile: (_: string) => {},
+          }}
+        />
+        ,
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByTestId("icon-foldedPathState-/"));
+    await user.click(screen.getByTestId("button-modifyPath-/folder"));
+    await user.click(screen.getByText("Delete"));
+
+    expect(screen.queryByText("folder")).not.toBeInTheDocument();
+  });
+
+  // it("allows to delete nested paths", async () => {
+  //   const user = userEvent.setup();
+  //
+  //   const queryClient = new QueryClient({
+  //     defaultOptions: { queries: { retry: false } },
+  //   });
+  //   render(
+  //     <QueryClientProvider client={queryClient}>
+  //       <FileTree
+  //         selectedFileProps={{
+  //           selectedFile: "",
+  //           handleChangeSelectedFile: (_: string) => {},
+  //         }}
+  //       />
+  //       ,
+  //     </QueryClientProvider>,
+  //   );
+  //
+  //   await user.click(screen.getByTestId("icon-foldedPathState-/"));
+  //   await user.click(screen.getByTestId("button-modifyPath-/folder"));
+  //   await user.click(screen.getByText("Delete"));
+  //
+  //   expect(screen.queryByText("folder")).not.toBeInTheDocument();
+  // });
 });

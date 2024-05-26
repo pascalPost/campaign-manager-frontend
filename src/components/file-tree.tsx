@@ -45,6 +45,28 @@ import { toast } from "sonner";
 import { getContainingFolder } from "@/lib/pathUtils.ts";
 import { components } from "@/lib/api/v1";
 
+// type FileTreeAction={
+//   type: "ADD_FOLDER",
+//   path: string
+// } | {
+//   type: "ADD_FILE",
+//   path: string
+// } | {
+//   type: "UPDATE_FOLDER",
+//   path: string,
+//   childPaths: string[]
+// } | {
+//   type: "TOGGLE_FOLD",
+//   path: string,
+//   isFolded: boolean
+// }
+//
+// function fileTreeReducer(state: Map<string, Folder | File>, action: FileTreeAction): Map<string, Folder | File> {
+//   switch (action.type) {
+//
+//   }
+// }
+
 // function fileTreeReducer(state: FileTreeState, action: FileTreeAction): FileTreeState {
 //     switch (action.type) {
 //         case "ADD_FOLDER":
@@ -86,18 +108,19 @@ import { components } from "@/lib/api/v1";
 //     }
 // }
 
-// async function deleteFileTree(path: string) {
-//   const { data, error } = await client.DELETE("/fileTree/{path}", {
-//     params: {
-//       path: {
-//         path: path,
-//       },
-//     },
-//   });
-//   if (error) throw error;
-//   if (!data) return "";
-//   return data;
-// }
+function removeLeadingSlash(path: string): string {
+  return path.replace(/^\/+/, "");
+}
+
+async function deleteFileTree(path: string) {
+  const { data, error } = await client.DELETE("/fileTree/{path}", {
+    params: {
+      path: { path: removeLeadingSlash(path) },
+    },
+  });
+  if (error) throw error;
+  return data.path;
+}
 
 async function postFileTree(path: string, isDir: boolean): Promise<string> {
   const { data, error } = await client.POST("/fileTree", {
@@ -275,11 +298,34 @@ function AddPathDialog({
 //   );
 // }
 
-function ModifyPathDialog({ path }: { path: string }) {
+type ModifyPathDialogProps = {
+  path: string;
+  onDeletePath: (path: string) => void;
+};
+
+function ModifyPathDialog(props: ModifyPathDialogProps) {
+  const deleteMutation = useMutation({
+    mutationFn: (path: string) => {
+      return deleteFileTree(path);
+    },
+    onError: (e: components["schemas"]["Error"]) => {
+      toast.error(`Error on folder creation: ${e.message}`);
+    },
+    onSuccess: (path) => {
+      toast.success(`Deleted successfully: ${path}`);
+      props.onDeletePath(path);
+    },
+  });
+
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-6 w-6">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-6 w-6"
+          data-testid={`button-modifyPath-${props.path}`}
+        >
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -288,18 +334,27 @@ function ModifyPathDialog({ path }: { path: string }) {
           <DialogTitle>
             Modify path:
             <code className="relative ml-1 rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono font-semibold">
-              {path}
+              {props.path}
             </code>
           </DialogTitle>
           <div className="flex flex-col gap-8 py-4">
-            <Button variant="destructive" disabled>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                deleteMutation.mutate(props.path);
+              }}
+            >
               Delete
             </Button>
             <div className="flex flex-col gap-2">
               <Label htmlFor="newPath" className="text-left">
                 File
               </Label>
-              <Input id="newPath" defaultValue={path} className="col-span-3" />
+              <Input
+                id="newPath"
+                defaultValue={props.path}
+                className="col-span-3"
+              />
               <Button disabled>Rename</Button>
             </div>
           </div>
@@ -309,19 +364,22 @@ function ModifyPathDialog({ path }: { path: string }) {
   );
 }
 
-function FolderMenu({
-  path,
-  tree,
-  onUpdateFolder,
-}: {
+type FolderMenuProps = {
   path: string;
   tree: Map<string, Folder | File>;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
-}) {
+  onDeletePath: (path: string) => void;
+};
+
+function FolderMenu(props: FolderMenuProps) {
   return (
     <div className="invisible flex flex-row items-center gap-1 group-hover:visible">
-      <AddPathDialog path={path} tree={tree} onUpdateFolder={onUpdateFolder} />
-      <ModifyPathDialog path={path} />
+      <AddPathDialog
+        path={props.path}
+        tree={props.tree}
+        onUpdateFolder={props.onUpdateFolder}
+      />
+      <ModifyPathDialog path={props.path} onDeletePath={props.onDeletePath} />
     </div>
   );
 }
@@ -381,13 +439,8 @@ async function callGetFileTree(path: string, signal?: AbortSignal) {
       signal,
     });
   } else {
-    const pathWithoutLeadingSlash = path.replace(/^\/+/, "");
     return client.GET("/fileTree/{path}", {
-      params: {
-        path: {
-          path: pathWithoutLeadingSlash,
-        },
-      },
+      params: { path: { path: removeLeadingSlash(path) } },
       signal,
     });
   }
@@ -403,19 +456,10 @@ async function getFileTree(path: string, signal?: AbortSignal) {
   }
 
   return data.map((entry): File | Folder => {
-    // the returned path does not contain a leading slash. We add that here.
-    const entryPath = "/" + entry.path;
     if (entry.isDir) {
-      return {
-        type: "folder",
-        path: entryPath,
-        isFolded: true,
-      };
+      return { type: "folder", path: entry.path, isFolded: true };
     } else {
-      return {
-        type: "file",
-        path: entryPath,
-      };
+      return { type: "file", path: entry.path };
     }
   });
 }
@@ -425,6 +469,7 @@ type FileTreeFolderProps = {
   tree: Map<string, Folder | File>;
   onChangeFold: (path: string, state: boolean) => void;
   onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
+  onDeletePath: (path: string) => void;
   selectedFileProps: SelectedFileProps;
 };
 
@@ -453,7 +498,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
       <li className="group flex h-7 w-full flex-row justify-between">
         <div className="flex flex-row items-center">
           <ChevronRight
-            data-testid={`fold-icon_${folderName}`}
+            data-testid={`icon-foldedPathState-${folder.path}`}
             className="h-4 w-4 hover:cursor-pointer"
             onClick={() => props.onChangeFold(props.path, false)}
           />
@@ -463,6 +508,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
           path={props.path}
           tree={props.tree}
           onUpdateFolder={props.onUpdateFolder}
+          onDeletePath={props.onDeletePath}
         />
       </li>
     );
@@ -492,6 +538,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
             path={props.path}
             tree={props.tree}
             onUpdateFolder={props.onUpdateFolder}
+            onDeletePath={props.onDeletePath}
           />
         </li>
         <ul className="pl-4">
@@ -515,6 +562,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
                   tree={props.tree}
                   onChangeFold={props.onChangeFold}
                   onUpdateFolder={props.onUpdateFolder}
+                  onDeletePath={props.onDeletePath}
                   selectedFileProps={props.selectedFileProps}
                 />
               );
@@ -541,6 +589,12 @@ function FileTree(props: FileTreeProps) {
     ]),
   );
 
+  function handleDeletePath(path: string) {
+    // TODO delete content
+    tree.delete(path);
+    setTree(new Map(tree));
+  }
+
   function handleChangeFold(path: string, state: boolean) {
     const folder = tree.get(path) as Folder;
     folder.isFolded = state;
@@ -548,17 +602,11 @@ function FileTree(props: FileTreeProps) {
   }
 
   function handleUpdateFolder(path: string, data: (File | Folder)[]) {
-    console.log("handleUpdateFolder", path, data);
-
     const folder = tree.get(path) as Folder;
-
     data.forEach((e) => {
       tree.set(e.path, e);
     });
-
     folder.childPaths = data.map((e) => e.path);
-
-    console.log("new map", tree);
     setTree(new Map(tree));
   }
 
@@ -571,6 +619,7 @@ function FileTree(props: FileTreeProps) {
           tree={tree}
           onChangeFold={handleChangeFold}
           onUpdateFolder={handleUpdateFolder}
+          onDeletePath={handleDeletePath}
           selectedFileProps={props.selectedFileProps}
         />
       </ul>

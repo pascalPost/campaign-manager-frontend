@@ -10,6 +10,9 @@ import { Layout } from "@/components/layout";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { SchedulerPage } from "@/scheduler/page.tsx";
 import { EditorPage } from "@/editor/page.tsx";
+import { enableMapSet } from "immer";
+
+enableMapSet();
 
 const queryClient = new QueryClient();
 

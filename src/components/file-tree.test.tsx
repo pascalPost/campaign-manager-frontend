@@ -9,6 +9,10 @@ import { FileTree } from "@/components/file-tree.tsx";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { enableMapSet } from "immer";
+
+enableMapSet();
+
 const server = setupServer(
   http.get("http://localhost:3000/fileTree", () => {
     return HttpResponse.json(

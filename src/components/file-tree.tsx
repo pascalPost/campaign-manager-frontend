@@ -44,6 +44,7 @@ import { toast } from "sonner";
 // } from "@/components/ui/alert-dialog";
 import { getContainingFolder } from "@/lib/pathUtils.ts";
 import { components } from "@/lib/api/v1";
+import { useImmer } from "use-immer";
 
 // type FileTreeAction={
 //   type: "ADD_FOLDER",
@@ -580,7 +581,7 @@ type FileTreeProps = {
 
 function FileTree(props: FileTreeProps) {
   // TODO: enhance with immer
-  const [tree, setTree] = useState(
+  const [tree, updateTree] = useImmer(
     new Map<string, Folder | File>([
       [
         "/",
@@ -590,24 +591,49 @@ function FileTree(props: FileTreeProps) {
   );
 
   function handleDeletePath(path: string) {
-    // TODO delete content
-    tree.delete(path);
-    setTree(new Map(tree));
+    const parentPath = getContainingFolder(path);
+    updateTree((draft) => {
+      // draft.delete(path);
+
+      const parent = draft.get(parentPath) as Folder;
+      parent.childPaths = parent.childPaths?.filter((e) => e !== path);
+
+      deleteAllChildren(path);
+
+      function deleteAllChildren(path: string) {
+        const place = draft.get(path);
+        if (place.type === "folder") {
+          place.childPaths?.forEach(deleteAllChildren);
+        }
+        draft.delete(path);
+      }
+    });
   }
 
   function handleChangeFold(path: string, state: boolean) {
-    const folder = tree.get(path) as Folder;
-    folder.isFolded = state;
-    setTree(new Map(tree.set(path, folder)));
+    // const folder = tree.get(path) as Folder;
+    // folder.isFolded = state;
+    // setTree(new Map(tree.set(path, folder)));
+    updateTree((draft) => {
+      const folder = draft.get(path) as Folder;
+      folder.isFolded = state;
+    });
   }
 
   function handleUpdateFolder(path: string, data: (File | Folder)[]) {
-    const folder = tree.get(path) as Folder;
-    data.forEach((e) => {
-      tree.set(e.path, e);
+    // const folder = tree.get(path) as Folder;
+    // data.forEach((e) => {
+    //   tree.set(e.path, e);
+    // });
+    // folder.childPaths = data.map((e) => e.path);
+    // setTree(new Map(tree));
+    updateTree((draft) => {
+      const folder = draft.get(path) as Folder;
+      data.forEach((e) => {
+        draft.set(e.path, e);
+      });
+      folder.childPaths = data.map((e) => e.path);
     });
-    folder.childPaths = data.map((e) => e.path);
-    setTree(new Map(tree));
   }
 
   return (

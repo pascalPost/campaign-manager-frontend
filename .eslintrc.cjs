@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
   env: { browser: true, es2020: true },
-  plugins: ["react-refresh", "@typescript-eslint", "import", "testing-library"],
+  plugins: ["react-refresh", "@typescript-eslint", "import", "testing-library", "immer"],
   extends: [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
@@ -12,9 +12,9 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
-      extends: ['plugin:testing-library/react'],
-    },
+      files: ["**/__tests__/**/*.[jt]s?(x)", "**/?(*.)+(spec|test).[jt]s?(x)"],
+      extends: ["plugin:testing-library/react"]
+    }
   ],
   ignorePatterns: ["dist", ".eslintrc.cjs"],
   parserOptions: {

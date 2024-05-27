@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, prettyDOM, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 
@@ -10,11 +10,14 @@ import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { enableMapSet } from "immer";
+import { components } from "@/lib/api/v1";
 
 enableMapSet();
 
+const url = "http://localhost:3000/fileTree";
+
 const server = setupServer(
-  http.get("http://localhost:3000/fileTree", () => {
+  http.get(url, () => {
     return HttpResponse.json(
       [
         { path: "/folder", isDir: true },
@@ -23,7 +26,7 @@ const server = setupServer(
       { status: 200 },
     );
   }),
-  http.get("http://localhost:3000/fileTree/folder", () => {
+  http.get(`${url}/folder`, () => {
     return HttpResponse.json(
       [
         { path: "/folder/nestedFolder", isDir: true },
@@ -32,7 +35,15 @@ const server = setupServer(
       { status: 200 },
     );
   }),
-  http.delete("http://localhost:3000/fileTree/folder", () => {
+  http.post<
+    never,
+    components["schemas"]["FileTreeEntry"],
+    components["schemas"]["FileTreePath"]
+  >(url, async ({ request }) => {
+    const newPath = await request.json();
+    return HttpResponse.json({ path: newPath.path }, { status: 201 });
+  }),
+  http.delete(`${url}/folder`, () => {
     return HttpResponse.json({ path: "/folder" }, { status: 200 });
   }),
 );
@@ -125,6 +136,41 @@ describe("FileTree", () => {
     expect(screen.getAllByText("file")).toHaveLength(1);
     expect(screen.getAllByText("nestedFolder")).toHaveLength(1);
     expect(screen.getAllByText("nestedFile")).toHaveLength(1);
+  });
+
+  it("allows to create paths", async () => {
+    const user = userEvent.setup();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FileTree
+          selectedFileProps={{
+            selectedFile: "",
+            handleChangeSelectedFile: (_: string) => {},
+          }}
+        />
+        ,
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByTestId("icon-foldedPathState-/"));
+    await user.click(screen.getByTestId("button-addPath-/"));
+
+    const folderNameInput = screen.getByRole("textbox", {
+      name: /folder/i,
+    });
+    fireEvent.change(folderNameInput, { target: { value: "dir" } });
+
+    const button = screen.getByText("Add Folder");
+    await user.click(screen.getByText("Add Folder"));
+    console.log(prettyDOM(button));
+
+    // screen.getByText("dir");
+    //
+    expect(screen.getAllByText("dir")).toHaveLength(1);
   });
 
   it("allows to delete paths in the root", async () => {

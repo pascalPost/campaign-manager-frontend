@@ -1,4 +1,6 @@
 import fetch, { Request } from "node-fetch";
 
-globalThis.fetch = fetch as any;
-globalThis.Request = Request as any;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+globalThis.fetch = fetch as never;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+globalThis.Request = Request as never;

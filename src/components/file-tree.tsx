@@ -31,83 +31,9 @@ import {
   FormMessage,
 } from "@/components/ui/form.tsx";
 import { toast } from "sonner";
-// import {
-//   AlertDialog,
-//   AlertDialogAction,
-//   AlertDialogCancel,
-//   AlertDialogContent,
-//   AlertDialogDescription,
-//   AlertDialogFooter,
-//   AlertDialogHeader,
-//   AlertDialogTitle,
-//   AlertDialogTrigger,
-// } from "@/components/ui/alert-dialog";
 import { getContainingFolder } from "@/lib/pathUtils.ts";
 import { components } from "@/lib/api/v1";
 import { useImmer } from "use-immer";
-
-// type FileTreeAction={
-//   type: "ADD_FOLDER",
-//   path: string
-// } | {
-//   type: "ADD_FILE",
-//   path: string
-// } | {
-//   type: "UPDATE_FOLDER",
-//   path: string,
-//   childPaths: string[]
-// } | {
-//   type: "TOGGLE_FOLD",
-//   path: string,
-//   isFolded: boolean
-// }
-//
-// function fileTreeReducer(state: Map<string, Folder | File>, action: FileTreeAction): Map<string, Folder | File> {
-//   switch (action.type) {
-//
-//   }
-// }
-
-// function fileTreeReducer(state: FileTreeState, action: FileTreeAction): FileTreeState {
-//     switch (action.type) {
-//         case "ADD_FOLDER":
-//             return {
-//                 ...state,
-//                 [action.path]: {
-//                     type: "folder",
-//                     path: action.path,
-//                     childPaths: [],
-//                     isFolded: true,
-//                 },
-//             };
-//         case "ADD_FILE":
-//             return {
-//                 ...state,
-//                 [action.path]: {
-//                     type: "file",
-//                     path: action.path,
-//                 },
-//             };
-//         case "UPDATE_FOLDER":
-//             return {
-//                 ...state,
-//                 [action.path]: {
-//                     ...state[action.path],
-//                     childPaths: action.childPaths,
-//                 },
-//             };
-//         case "TOGGLE_FOLD":
-//             return {
-//                 ...state,
-//                 [action.path]: {
-//                     ...state[action.path],
-//                     isFolded: action.isFolded,
-//                 },
-//             };
-//         default:
-//             return state;
-//     }
-// }
 
 function removeLeadingSlash(path: string): string {
   return path.replace(/^\/+/, "");
@@ -137,15 +63,13 @@ const folderNameSchema = z.object({
   folderName: z.string().min(1).max(50),
 });
 
-function AddFolderForm({
-  path,
-  tree,
-  onUpdateFolder,
-}: {
+type AddFolderFormProps = {
   path: string;
-  tree: Map<string, Folder | File>;
-  onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
-}) {
+  onAddPath: (data: (File | Folder)[]) => void;
+  onSuccess?: () => void;
+};
+
+function AddFolderForm({ path, onAddPath, onSuccess }: AddFolderFormProps) {
   const form = useForm<z.infer<typeof folderNameSchema>>({
     resolver: zodResolver(folderNameSchema),
     defaultValues: {
@@ -154,28 +78,14 @@ function AddFolderForm({
   });
 
   const mutation = useMutation({
-    mutationFn: (filePath: string) => {
-      const data = postFileTree(filePath, true).then((data) => "/" + data);
-      return data;
+    mutationFn: async (filePath: string) => {
+      return postFileTree(filePath, true);
     },
     onError: (e: components["schemas"]["Error"]) => {
       toast.error(`Error on folder creation: ${e.message}`);
     },
     onSuccess: (path) => {
       toast.success(`Path created successfully: ${path}`);
-
-      const containingFolderPath: string = getContainingFolder(path);
-      const containingFolder = tree.get(containingFolderPath);
-
-      if (
-        containingFolder === undefined ||
-        containingFolder.type !== "folder"
-      ) {
-        throw new Error("Error in folder logic");
-      }
-
-      // add new path to containing folder
-      containingFolder.childPaths?.push(path);
 
       const newFolder: Folder = {
         type: "folder",
@@ -184,23 +94,20 @@ function AddFolderForm({
         childPaths: [],
       };
 
-      onUpdateFolder(containingFolderPath, [containingFolder, newFolder]);
+      onAddPath([newFolder]);
 
       form.reset();
+      onSuccess?.();
     },
   });
 
   function onSubmit(value: z.infer<typeof folderNameSchema>) {
     const folderName = value.folderName;
-    let newPath = "";
+    let newPath = path;
     if (path === "/") {
-      newPath = folderName;
+      newPath += folderName;
     } else {
-      newPath = path + "/" + folderName;
-      // TODO try to remove this!
-      if (newPath.startsWith("/")) {
-        newPath = newPath.slice(1);
-      }
+      newPath += "/" + folderName;
     }
 
     mutation.mutate(newPath);
@@ -230,19 +137,23 @@ function AddFolderForm({
   );
 }
 
-function AddPathDialog({
-  path,
-  tree,
-  onUpdateFolder,
-}: {
+type AddPathDialogProps = {
   path: string;
-  tree: Map<string, Folder | File>;
-  onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
-}) {
+  onAddPath: (data: (File | Folder)[]) => void;
+};
+
+function AddPathDialog({ path, onAddPath }: AddPathDialogProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="h-6 w-6">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-6 w-6"
+          data-testid={`button-addPath-${path}`}
+        >
           <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -257,8 +168,8 @@ function AddPathDialog({
           <div className="flex flex-col gap-8 py-4">
             <AddFolderForm
               path={path}
-              tree={tree}
-              onUpdateFolder={onUpdateFolder}
+              onAddPath={onAddPath}
+              onSuccess={() => setOpen(false)}
             />
             <div className="flex flex-col gap-2">
               <Label htmlFor="file" className="text-left">
@@ -277,27 +188,6 @@ function AddPathDialog({
     </Dialog>
   );
 }
-
-// function DeletePathDialog({ path }: { path: string }) {
-//   return (
-//     <AlertDialog>
-//       <AlertDialogTrigger>Open</AlertDialogTrigger>
-//       <AlertDialogContent>
-//         <AlertDialogHeader>
-//           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-//           <AlertDialogDescription>
-//             This action cannot be undone. This will permanently delete your
-//             account and remove your data from our servers.
-//           </AlertDialogDescription>
-//         </AlertDialogHeader>
-//         <AlertDialogFooter>
-//           <AlertDialogCancel>Cancel</AlertDialogCancel>
-//           <AlertDialogAction>Continue</AlertDialogAction>
-//         </AlertDialogFooter>
-//       </AlertDialogContent>
-//     </AlertDialog>
-//   );
-// }
 
 type ModifyPathDialogProps = {
   path: string;
@@ -367,19 +257,14 @@ function ModifyPathDialog(props: ModifyPathDialogProps) {
 
 type FolderMenuProps = {
   path: string;
-  tree: Map<string, Folder | File>;
-  onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
+  onAddPath: (data: (File | Folder)[]) => void;
   onDeletePath: (path: string) => void;
 };
 
 function FolderMenu(props: FolderMenuProps) {
   return (
     <div className="invisible flex flex-row items-center gap-1 group-hover:visible">
-      <AddPathDialog
-        path={props.path}
-        tree={props.tree}
-        onUpdateFolder={props.onUpdateFolder}
-      />
+      <AddPathDialog path={props.path} onAddPath={props.onAddPath} />
       <ModifyPathDialog path={props.path} onDeletePath={props.onDeletePath} />
     </div>
   );
@@ -469,13 +354,20 @@ type FileTreeFolderProps = {
   path: string;
   tree: Map<string, Folder | File>;
   onChangeFold: (path: string, state: boolean) => void;
-  onUpdateFolder: (path: string, data: (File | Folder)[]) => void;
+  onAddPath: (data: (File | Folder)[]) => void;
   onDeletePath: (path: string) => void;
   selectedFileProps: SelectedFileProps;
 };
 
-function FileTreeFolder(props: FileTreeFolderProps) {
-  const folder = props.tree.get(props.path) as Folder;
+function FileTreeFolder({
+  path,
+  tree,
+  onChangeFold,
+  onAddPath,
+  onDeletePath,
+  selectedFileProps,
+}: FileTreeFolderProps) {
+  const folder = tree.get(path) as Folder;
   const isFolded = folder.isFolded;
 
   const query = useQuery({
@@ -488,7 +380,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
 
   useEffect(() => {
     if (query.data) {
-      props.onUpdateFolder(props.path, query.data);
+      onAddPath(query.data);
     }
   }, [query.data]);
 
@@ -501,15 +393,14 @@ function FileTreeFolder(props: FileTreeFolderProps) {
           <ChevronRight
             data-testid={`icon-foldedPathState-${folder.path}`}
             className="h-4 w-4 hover:cursor-pointer"
-            onClick={() => props.onChangeFold(props.path, false)}
+            onClick={() => onChangeFold(path, false)}
           />
           <div>{folderName}</div>
         </div>
         <FolderMenu
-          path={props.path}
-          tree={props.tree}
-          onUpdateFolder={props.onUpdateFolder}
-          onDeletePath={props.onDeletePath}
+          path={path}
+          onAddPath={onAddPath}
+          onDeletePath={onDeletePath}
         />
       </li>
     );
@@ -523,7 +414,7 @@ function FileTreeFolder(props: FileTreeFolderProps) {
   }
 
   if (query.isSuccess) {
-    const folder = props.tree.get(props.path) as Folder;
+    const folder = tree.get(path) as Folder;
 
     return (
       <>
@@ -531,27 +422,26 @@ function FileTreeFolder(props: FileTreeFolderProps) {
           <div className="flex flex-row items-center">
             <ChevronDown
               className="h-4 w-4 hover:cursor-pointer"
-              onClick={() => props.onChangeFold(props.path, true)}
+              onClick={() => onChangeFold(path, true)}
             />
             {folderName}
           </div>
           <FolderMenu
-            path={props.path}
-            tree={props.tree}
-            onUpdateFolder={props.onUpdateFolder}
-            onDeletePath={props.onDeletePath}
+            path={path}
+            onAddPath={onAddPath}
+            onDeletePath={onDeletePath}
           />
         </li>
         <ul className="pl-4">
           {folder.childPaths?.map((entry) => {
-            const res = props.tree.get(entry);
+            const res = tree.get(entry);
             if (!res) return;
             if (res.type === "file") {
               return (
                 <FileTreeFile
                   key={entry}
                   file={res}
-                  selectedFileProps={props.selectedFileProps}
+                  selectedFileProps={selectedFileProps}
                 />
               );
             }
@@ -560,11 +450,11 @@ function FileTreeFolder(props: FileTreeFolderProps) {
                 <FileTreeFolder
                   key={entry}
                   path={entry}
-                  tree={props.tree}
-                  onChangeFold={props.onChangeFold}
-                  onUpdateFolder={props.onUpdateFolder}
-                  onDeletePath={props.onDeletePath}
-                  selectedFileProps={props.selectedFileProps}
+                  tree={tree}
+                  onChangeFold={onChangeFold}
+                  onAddPath={onAddPath}
+                  onDeletePath={onDeletePath}
+                  selectedFileProps={selectedFileProps}
                 />
               );
             }
@@ -580,7 +470,6 @@ type FileTreeProps = {
 };
 
 function FileTree(props: FileTreeProps) {
-  // TODO: enhance with immer
   const [tree, updateTree] = useImmer(
     new Map<string, Folder | File>([
       [
@@ -593,8 +482,6 @@ function FileTree(props: FileTreeProps) {
   function handleDeletePath(path: string) {
     const parentPath = getContainingFolder(path);
     updateTree((draft) => {
-      // draft.delete(path);
-
       const parent = draft.get(parentPath) as Folder;
       parent.childPaths = parent.childPaths?.filter((e) => e !== path);
 
@@ -602,6 +489,10 @@ function FileTree(props: FileTreeProps) {
 
       function deleteAllChildren(path: string) {
         const place = draft.get(path);
+        if (!place) {
+          throw new Error(`Path not found in tree: ${path}`);
+        }
+
         if (place.type === "folder") {
           place.childPaths?.forEach(deleteAllChildren);
         }
@@ -611,28 +502,31 @@ function FileTree(props: FileTreeProps) {
   }
 
   function handleChangeFold(path: string, state: boolean) {
-    // const folder = tree.get(path) as Folder;
-    // folder.isFolded = state;
-    // setTree(new Map(tree.set(path, folder)));
     updateTree((draft) => {
       const folder = draft.get(path) as Folder;
       folder.isFolded = state;
     });
   }
 
-  function handleUpdateFolder(path: string, data: (File | Folder)[]) {
-    // const folder = tree.get(path) as Folder;
-    // data.forEach((e) => {
-    //   tree.set(e.path, e);
-    // });
-    // folder.childPaths = data.map((e) => e.path);
-    // setTree(new Map(tree));
+  function handleAddPath(data: (File | Folder)[]) {
     updateTree((draft) => {
-      const folder = draft.get(path) as Folder;
       data.forEach((e) => {
+        // add new path
         draft.set(e.path, e);
+
+        // modify parent folder
+        const containingFolderName = getContainingFolder(e.path);
+        const containingFolder = draft.get(containingFolderName) as Folder;
+        if (!containingFolder) {
+          throw new Error(`Folder not found: ${containingFolderName}`);
+        }
+
+        if (!containingFolder.childPaths) {
+          containingFolder.childPaths = [];
+        }
+
+        containingFolder.childPaths?.push(e.path);
       });
-      folder.childPaths = data.map((e) => e.path);
     });
   }
 
@@ -644,7 +538,7 @@ function FileTree(props: FileTreeProps) {
           path={"/"}
           tree={tree}
           onChangeFold={handleChangeFold}
-          onUpdateFolder={handleUpdateFolder}
+          onAddPath={handleAddPath}
           onDeletePath={handleDeletePath}
           selectedFileProps={props.selectedFileProps}
         />

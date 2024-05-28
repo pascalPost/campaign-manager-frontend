@@ -157,20 +157,20 @@ describe("FileTree", () => {
     );
 
     await user.click(screen.getByTestId("icon-foldedPathState-/"));
+
     await user.click(screen.getByTestId("button-addPath-/"));
-
-    const folderNameInput = screen.getByRole("textbox", {
-      name: /folder/i,
+    fireEvent.change(screen.getByRole("textbox", { name: /folder/i }), {
+      target: { value: "dir" },
     });
-    fireEvent.change(folderNameInput, { target: { value: "dir" } });
-
-    const button = screen.getByText("Add Folder");
     await user.click(screen.getByText("Add Folder"));
-    console.log(prettyDOM(button));
-
-    // screen.getByText("dir");
-    //
     expect(screen.getAllByText("dir")).toHaveLength(1);
+
+    await user.click(screen.getByTestId("button-addPath-/"));
+    fireEvent.change(screen.getByRole("textbox", { name: /file/i }), {
+      target: { value: "test.txt" },
+    });
+    await user.click(screen.getByText("Add File"));
+    expect(screen.getAllByText("test.txt")).toHaveLength(1);
   });
 
   it("allows to delete paths in the root", async () => {

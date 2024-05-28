@@ -59,22 +59,23 @@ async function postFileTree(path: string, isDir: boolean): Promise<string> {
   return data.path;
 }
 
-const folderNameSchema = z.object({
+const pathNameSchema = z.object({
   // TODO disable / and \ (and other non allowed chars)
-  folderName: z.string().min(1).max(50),
+  pathName: z.string().min(1).max(50),
 });
 
-type AddFolderFormProps = {
+type AddPathFormProps = {
+  type: "folder" | "file";
   path: string;
   onAddPath: (data: (File | Folder)[]) => void;
   onSuccess?: () => void;
 };
 
-function AddFolderForm({ path, onAddPath, onSuccess }: AddFolderFormProps) {
-  const form = useForm<z.infer<typeof folderNameSchema>>({
-    resolver: zodResolver(folderNameSchema),
+function AddPathForm({ type, path, onAddPath, onSuccess }: AddPathFormProps) {
+  const form = useForm<z.infer<typeof pathNameSchema>>({
+    resolver: zodResolver(pathNameSchema),
     defaultValues: {
-      folderName: "",
+      pathName: "",
     },
   });
 
@@ -88,27 +89,36 @@ function AddFolderForm({ path, onAddPath, onSuccess }: AddFolderFormProps) {
     onSuccess: (path) => {
       toast.success(`Path created successfully: ${path}`);
 
-      const newFolder: Folder = {
-        type: "folder",
-        path: path,
-        isFolded: true,
-        childPaths: [],
-      };
+      if (type === "folder") {
+        const newFolder: Folder = {
+          type: "folder",
+          path: path,
+          isFolded: true,
+          childPaths: [],
+        };
 
-      onAddPath([newFolder]);
+        onAddPath([newFolder]);
+      } else {
+        const newFile: File = {
+          type: "file",
+          path: path,
+        };
+
+        onAddPath([newFile]);
+      }
 
       form.reset();
       onSuccess?.();
     },
   });
 
-  function onSubmit(value: z.infer<typeof folderNameSchema>) {
-    const folderName = value.folderName;
+  function onSubmit(value: z.infer<typeof pathNameSchema>) {
+    const pathName = value.pathName;
     let newPath = path;
     if (path === "/") {
-      newPath += folderName;
+      newPath += pathName;
     } else {
-      newPath += "/" + folderName;
+      newPath += "/" + pathName;
     }
 
     mutation.mutate(newPath);
@@ -119,19 +129,22 @@ function AddFolderForm({ path, onAddPath, onSuccess }: AddFolderFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
         <FormField
           control={form.control}
-          name="folderName"
+          name="pathName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Folder</FormLabel>
+              <FormLabel>{type === "folder" ? "Folder" : "File"}</FormLabel>
               <FormControl>
-                <Input placeholder="folder-name" {...field} />
+                <Input
+                  placeholder={type === "folder" ? "folder-name" : "file-name"}
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full">
-          Add Folder
+          {type === "folder" ? "Add Folder" : "Add File"}
         </Button>
       </form>
     </Form>
@@ -167,22 +180,18 @@ function AddPathDialog({ path, onAddPath }: AddPathDialogProps) {
             </code>
           </DialogTitle>
           <div className="flex flex-col gap-8 py-4">
-            <AddFolderForm
+            <AddPathForm
+              type="folder"
               path={path}
               onAddPath={onAddPath}
               onSuccess={() => setOpen(false)}
             />
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="file" className="text-left">
-                File
-              </Label>
-              <Input
-                id="file"
-                defaultValue="file.name"
-                className="col-span-3"
-              />
-              <Button disabled>Add File</Button>
-            </div>
+            <AddPathForm
+              type="file"
+              path={path}
+              onAddPath={onAddPath}
+              onSuccess={() => setOpen(false)}
+            />
           </div>
         </DialogHeader>
       </DialogContent>

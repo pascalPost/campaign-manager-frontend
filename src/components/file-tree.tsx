@@ -4,9 +4,10 @@ import {
   ChevronRight,
   Pencil,
   Plus,
+  RefreshCcw,
   Settings,
 } from "lucide-react";
-import { useMutation, useQuery } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 import { client } from "@/lib/api/client.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { clsx } from "clsx";
@@ -255,17 +256,41 @@ function ModifyPathDialog(props: ModifyPathDialogProps) {
   );
 }
 
+type ReloadButtonProps = {
+  onReset: () => void;
+};
+
+function ReloadButton({ onReset }: ReloadButtonProps) {
+  return (
+    <Button variant="outline" size="icon" className="h-6 w-6" onClick={onReset}>
+      <RefreshCcw className="h-4 w-4" />
+    </Button>
+  );
+}
+
 type FolderMenuProps = {
+  root?: boolean;
   path: string;
   onAddPath: (data: (File | Folder)[]) => void;
   onDeletePath: (path: string) => void;
+  onReset: () => void;
 };
 
-function FolderMenu(props: FolderMenuProps) {
+function FolderMenu({
+  root,
+  path,
+  onAddPath,
+  onDeletePath,
+  onReset,
+}: FolderMenuProps) {
   return (
     <div className="invisible flex flex-row items-center gap-1 group-hover:visible">
-      <AddPathDialog path={props.path} onAddPath={props.onAddPath} />
-      <ModifyPathDialog path={props.path} onDeletePath={props.onDeletePath} />
+      <AddPathDialog path={path} onAddPath={onAddPath} />
+      {root ? (
+        <ReloadButton onReset={onReset} />
+      ) : (
+        <ModifyPathDialog path={path} onDeletePath={onDeletePath} />
+      )}
     </div>
   );
 }
@@ -351,20 +376,24 @@ async function getFileTree(path: string, signal?: AbortSignal) {
 }
 
 type FileTreeFolderProps = {
+  root?: boolean;
   path: string;
   tree: Map<string, Folder | File>;
   onChangeFold: (path: string, state: boolean) => void;
   onAddPath: (data: (File | Folder)[]) => void;
   onDeletePath: (path: string) => void;
+  onReset: () => void;
   selectedFileProps: SelectedFileProps;
 };
 
 function FileTreeFolder({
+  root,
   path,
   tree,
   onChangeFold,
   onAddPath,
   onDeletePath,
+  onReset,
   selectedFileProps,
 }: FileTreeFolderProps) {
   const folder = tree.get(path) as Folder;
@@ -398,9 +427,11 @@ function FileTreeFolder({
           <div>{folderName}</div>
         </div>
         <FolderMenu
+          root={root}
           path={path}
           onAddPath={onAddPath}
           onDeletePath={onDeletePath}
+          onReset={onReset}
         />
       </li>
     );
@@ -427,9 +458,11 @@ function FileTreeFolder({
             {folderName}
           </div>
           <FolderMenu
+            root={root}
             path={path}
             onAddPath={onAddPath}
             onDeletePath={onDeletePath}
+            onReset={onReset}
           />
         </li>
         <ul className="pl-4">
@@ -454,6 +487,7 @@ function FileTreeFolder({
                   onChangeFold={onChangeFold}
                   onAddPath={onAddPath}
                   onDeletePath={onDeletePath}
+                  onReset={onReset}
                   selectedFileProps={selectedFileProps}
                 />
               );
@@ -478,6 +512,27 @@ function FileTree(props: FileTreeProps) {
       ],
     ]),
   );
+
+  const queryClient = useQueryClient();
+
+  function handleReset() {
+    // TODO fix reset
+    updateTree((draft) => {
+      draft.clear();
+      draft.set("/", {
+        type: "folder",
+        path: "/",
+        childPaths: undefined,
+        isFolded: true,
+      });
+
+      queryClient
+        .invalidateQueries({ queryKey: ["getFileTree", "/"] })
+        .catch((e) => {
+          throw e;
+        });
+    });
+  }
 
   function handleDeletePath(path: string) {
     const parentPath = getContainingFolder(path);
@@ -534,12 +589,14 @@ function FileTree(props: FileTreeProps) {
     <>
       <ul className="mx-1 mt-1">
         <FileTreeFolder
+          root={true}
           key={"/"}
           path={"/"}
           tree={tree}
           onChangeFold={handleChangeFold}
           onAddPath={handleAddPath}
           onDeletePath={handleDeletePath}
+          onReset={handleReset}
           selectedFileProps={props.selectedFileProps}
         />
       </ul>

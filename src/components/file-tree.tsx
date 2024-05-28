@@ -81,7 +81,7 @@ function AddPathForm({ type, path, onAddPath, onSuccess }: AddPathFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (filePath: string) => {
-      return postFileTree(filePath, true);
+      return postFileTree(filePath, type === "folder");
     },
     onError: (e: components["schemas"]["Error"]) => {
       toast.error(`Error on folder creation: ${e.message}`);

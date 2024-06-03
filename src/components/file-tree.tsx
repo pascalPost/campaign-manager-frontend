@@ -8,7 +8,6 @@ import {
   Settings,
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { client } from "@/lib/api/client.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { clsx } from "clsx";
 import {
@@ -33,8 +32,10 @@ import {
 } from "@/components/ui/form.tsx";
 import { toast } from "sonner";
 import { getContainingFolder } from "@/lib/pathUtils.ts";
-import { components } from "@/lib/api/v1";
 import { useImmer } from "use-immer";
+
+import { client } from "@/lib/api/fs/client.ts";
+import { components } from "@/lib/api/fs/v1";
 
 function removeLeadingSlash(path: string): string {
   return path.replace(/^\/+/, "");

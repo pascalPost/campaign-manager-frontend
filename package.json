@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "gen": "openapi-typescript ../api/openapi.yaml  -o ./src/lib/api/v1.d.ts",
+    "gen": "openapi-typescript ../api/openapi.yaml  -o ./src/lib/api/v1.d.ts && openapi-typescript ../fileSystemService/api.yaml  -o ./src/lib/api/fs/v1.d.ts",
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

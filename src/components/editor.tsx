@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button.tsx";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
-import { client } from "@/lib/api/client.ts";
 import MonacoEditor from "@monaco-editor/react";
+
+import { client } from "@/lib/api/fs/client.ts";
 
 async function getFile(
   filePath: string,
@@ -17,6 +18,10 @@ async function getFile(
     parseAs: "text",
     signal,
   });
+
+  // fix for empty files which are returned as empty objects
+  if (typeof data === "object" && Object.keys(data).length === 0) return "";
+
   return data;
 }
 
@@ -66,7 +71,7 @@ function Editor({ filePath }: { filePath: string | undefined }) {
     <div className="flex h-full flex-col gap-2">
       {filePath}
       <MonacoEditor
-        value={editorText}
+        value={editorText || ""}
         onChange={(e) => setEditorText(e)}
         className="h-full resize-none border-none"
       />
@@ -83,7 +88,7 @@ function Editor({ filePath }: { filePath: string | undefined }) {
         <Button
           className="w-full"
           onClick={() => {
-            if (editorText) {
+            if (editorText !== undefined) {
               mutation.mutate(editorText);
             }
           }}

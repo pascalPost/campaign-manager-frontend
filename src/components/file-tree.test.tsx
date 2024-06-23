@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, prettyDOM, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 
@@ -17,7 +17,7 @@ enableMapSet();
 const url = "http://localhost:3000/fileTree";
 
 const server = setupServer(
-  http.get(url, () => {
+  http.get(`${url}/${encodeURIComponent("/")}`, () => {
     return HttpResponse.json(
       [
         { path: "/folder", isDir: true },
@@ -26,12 +26,18 @@ const server = setupServer(
       { status: 200 },
     );
   }),
-  http.get(`${url}/folder`, () => {
+  http.get(`${url}/${encodeURIComponent("/folder")}`, () => {
     return HttpResponse.json(
       [
         { path: "/folder/nestedFolder", isDir: true },
         { path: "/folder/nestedFile", isDir: false },
       ],
+      { status: 200 },
+    );
+  }),
+  http.get(`${url}/${encodeURIComponent("/folder/nestedFolder")}`, () => {
+    return HttpResponse.json(
+      [{ path: "/folder/deeplyNestedFile", isDir: false }],
       { status: 200 },
     );
   }),
@@ -136,6 +142,33 @@ describe("FileTree", () => {
     expect(screen.getAllByText("file")).toHaveLength(1);
     expect(screen.getAllByText("nestedFolder")).toHaveLength(1);
     expect(screen.getAllByText("nestedFile")).toHaveLength(1);
+  });
+
+  it("renders deeply nested folder content", async () => {
+    const user = userEvent.setup();
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FileTree
+          selectedFileProps={{
+            selectedFile: "",
+            handleChangeSelectedFile: (_: string) => {},
+          }}
+        />
+        ,
+      </QueryClientProvider>,
+    );
+
+    await user.click(screen.getByTestId("icon-foldedPathState-/"));
+    await user.click(screen.getByTestId("icon-foldedPathState-/folder"));
+    await user.click(
+      screen.getByTestId("icon-foldedPathState-/folder/nestedFolder"),
+    );
+
+    expect(screen.getAllByText("deeplyNestedFile")).toHaveLength(1);
   });
 
   it("allows to create paths", async () => {

@@ -354,21 +354,11 @@ function FileTreeFile({
   );
 }
 
-async function callGetFileTree(path: string, signal?: AbortSignal) {
-  if (path === "/") {
-    return client.GET("/fileTree", {
-      signal,
-    });
-  } else {
-    return client.GET("/fileTree/{path}", {
-      params: { path: { path: removeLeadingSlash(path) } },
-      signal,
-    });
-  }
-}
-
 async function getFileTree(path: string, signal?: AbortSignal) {
-  const { data, error } = await callGetFileTree(path, signal);
+  const { data, error } = await client.GET("/fileTree/{path}", {
+    params: { path: { path: encodeURIComponent(path) } },
+    signal,
+  });
 
   if (error) throw error;
 

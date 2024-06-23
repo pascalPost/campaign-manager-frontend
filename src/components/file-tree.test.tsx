@@ -1,4 +1,4 @@
-import { fireEvent, prettyDOM, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 
@@ -14,7 +14,7 @@ import { components } from "@/lib/api/v1";
 
 enableMapSet();
 
-const url = "http://localhost:3000/fileTree";
+const url = "http://localhost:3000/fs/fileTree";
 
 const server = setupServer(
   http.get(`${url}/${encodeURIComponent("/")}`, () => {

@@ -1,6 +1,8 @@
 "use client";
 
 import { GetColumnDef, Job, JobTable } from "./job-table.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Link } from "wouter";
 
 const jobs: Job[] = [
   {
@@ -53,12 +55,21 @@ const jobs: Job[] = [
   },
 ];
 
-export function ProjectPage({ params }: { params: { projectId: string } }) {
+type ProjectPageProps = {
+  projectId: string;
+};
+
+export function ProjectPage({ projectId }: ProjectPageProps) {
   return (
     <div>
       <h1 className="scroll-m-20 text-2xl font-semibold tracking-tight">
-        Project {params.projectId}
+        Project {projectId}
       </h1>
+      <div className="mt-4 flex flex-row-reverse gap-5">
+        <Button className="min-w-80" asChild>
+          <Link href={`/project/${projectId}/edit`}>Edit Files</Link>
+        </Button>
+      </div>
       <div className="mt-4">
         <JobTable columns={GetColumnDef(jobs)} data={jobs} />
       </div>

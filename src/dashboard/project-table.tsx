@@ -7,6 +7,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { navigate } from "wouter/use-browser-location";
+import { client } from "@/lib/api/client.ts";
+import { useQuery } from "react-query";
+
+async function getProjects() {
+  const { data, error } = await client.GET("/projects", {});
+  if (error) throw error;
+  return data;
+}
 
 const projects = [
   {
@@ -20,6 +28,11 @@ const projects = [
 ];
 
 export function ProjectTable() {
+  const query = useQuery("projects", getProjects);
+
+  if (query.isLoading) return <div>Loading...</div>;
+  if (query.isError) return <div>Error: {query.error}</div>;
+
   return (
     <Table>
       <TableHeader>
@@ -33,7 +46,7 @@ export function ProjectTable() {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {projects.map((project) => (
+        {query.data?.map((project) => (
           <TableRow
             className="cursor-pointer"
             key={project.id}
@@ -41,10 +54,10 @@ export function ProjectTable() {
           >
             <TableCell className="font-medium">{project.id}</TableCell>
             <TableCell>{project.name}</TableCell>
-            <TableCell>{project.lastUpdate.getDate().toString()}</TableCell>
-            <TableCell>{project.jobs}</TableCell>
-            <TableCell>{project.success}</TableCell>
-            <TableCell>{project.error}</TableCell>
+            <TableCell>-</TableCell>
+            <TableCell>-</TableCell>
+            <TableCell>-</TableCell>
+            <TableCell>-</TableCell>
           </TableRow>
         ))}
       </TableBody>

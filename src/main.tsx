@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { SchedulerPage } from "@/scheduler/page.tsx";
 import { EditorPage } from "@/editor/page.tsx";
 import { enableMapSet } from "immer";
+import { ProjectEditorPage } from "@/project/[projectId]/edit/page.tsx";
 
 enableMapSet();
 
@@ -24,7 +25,12 @@ createRoot(document.getElementById("root")!).render(
           <Switch>
             <Route path="/" component={DashboardPage} />
             <Route path="/project/create" component={CreateProjectPage} />
-            <Route path="/project/:projectId" component={ProjectPage} />
+            <Route path="/project/:projectId">
+              {(params) => <ProjectPage projectId={params.projectId} />}
+            </Route>
+            <Route path="/project/:projectId/edit">
+              {(params) => <ProjectEditorPage projectId={params.projectId} />}
+            </Route>
             <Route path="/scheduler" component={SchedulerPage} />
             <Route path="/editor" component={EditorPage} />
 

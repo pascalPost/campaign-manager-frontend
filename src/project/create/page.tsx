@@ -13,11 +13,19 @@ import { useForm } from "react-hook-form";
 import { catchError } from "@/lib/utils.ts";
 import { toast } from "sonner";
 import { useMutation } from "react-query";
-import { components } from "@/lib/api/fs/v1";
+import { client } from "@/lib/api/client.ts";
 
 type Project = {
   projectName: string;
 };
+
+async function postProjects(name: string) {
+  const { data, error } = await client.POST("/projects", {
+    body: { name },
+  });
+  if (error) throw error;
+  return data.id;
+}
 
 export function CreateProjectPage() {
   const form = useForm<Project>({
@@ -28,16 +36,18 @@ export function CreateProjectPage() {
 
   const mutation = useMutation({
     mutationFn: async (projectName: string) => {
-      return postFileTree(filePath, type === "folder");
+      return postProjects(projectName);
     },
-    onError: (e: components["schemas"]["Error"]) => {
-      toast.error(`Error on folder creation: ${e.message}`);
+    onError: (e) => {
+      toast.error(`Error on folder creation: ${e}`);
     },
-    onSuccess: (path) => {},
+    onSuccess: (data) => {
+      toast.success(`Project ${data} created.`);
+    },
   });
 
   function onSubmit(data: Project) {
-    console.log(data);
+    mutation.mutate(data.projectName);
     // client
     //   .newProject({
     //     projectName: data.projectName,

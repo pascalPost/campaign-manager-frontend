@@ -500,6 +500,7 @@ function FileTreeFolder({
 }
 
 type FileTreeProps = {
+  rootPath: string;
   selectedFileProps: SelectedFileProps;
 };
 
@@ -508,7 +509,12 @@ function FileTree(props: FileTreeProps) {
     new Map<string, Folder | File>([
       [
         "/",
-        { type: "folder", path: "/", childPaths: undefined, isFolded: true },
+        {
+          type: "folder",
+          path: props.rootPath,
+          childPaths: undefined,
+          isFolded: true,
+        },
       ],
     ]),
   );
@@ -521,7 +527,7 @@ function FileTree(props: FileTreeProps) {
       draft.clear();
       draft.set("/", {
         type: "folder",
-        path: "/",
+        path: props.rootPath,
         childPaths: undefined,
         isFolded: true,
       });

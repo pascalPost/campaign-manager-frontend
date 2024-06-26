@@ -1,5 +1,3 @@
-"use client";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,20 +10,30 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { catchError, transport } from "@/lib/utils.ts";
+import { catchError } from "@/lib/utils.ts";
 import { toast } from "sonner";
+import { useMutation } from "react-query";
+import { components } from "@/lib/api/fs/v1";
 
 type Project = {
   projectName: string;
-  csvFilePath: string;
 };
 
 export function CreateProjectPage() {
   const form = useForm<Project>({
     defaultValues: {
       projectName: "",
-      csvFilePath: "",
     },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (projectName: string) => {
+      return postFileTree(filePath, type === "folder");
+    },
+    onError: (e: components["schemas"]["Error"]) => {
+      toast.error(`Error on folder creation: ${e.message}`);
+    },
+    onSuccess: (path) => {},
   });
 
   function onSubmit(data: Project) {
@@ -68,34 +76,16 @@ export function CreateProjectPage() {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="csvFilePath"
-            render={({ field: { ...fieldProps } }) => (
-              <FormItem>
-                <FormLabel>CSV File</FormLabel>
-                <FormControl>
-                  <Input
-                    {...fieldProps}
-                    type="file"
-                    accept=".csv"
-                    // onChange={(event) => {
-                    //   onChange(event.target.files[0].name);
-                    // }}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Import a csv file with parameters for job generation.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
           <div className="flex gap-5">
             <Button type="submit" className="w-full">
-              Start
+              Create
             </Button>
-            <Button type="reset" className="w-full" variant="secondary">
+            <Button
+              type="reset"
+              className="w-full"
+              variant="secondary"
+              disabled
+            >
               Cancel
             </Button>
           </div>

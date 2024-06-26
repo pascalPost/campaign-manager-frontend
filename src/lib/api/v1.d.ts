@@ -16,13 +16,13 @@ export interface paths {
       };
     };
   };
-  "/tasks": {
-    /** List tasks */
+  "/jobs": {
+    /** List jobs */
     get: {
       responses: {
       };
     };
-    /** Add new task */
+    /** Add new job */
     post: {
       responses: {
       };
@@ -32,11 +32,32 @@ export interface paths {
     /** List projects */
     get: {
       responses: {
+        /** @description Success response */
+        200: {
+          content: {
+            "application/json": components["schemas"]["Project"][];
+          };
+        };
       };
     };
-    /** Add new projects */
+    /** Add new project */
     post: {
+      requestBody: {
+        content: {
+          "application/json": {
+            name: string;
+          };
+        };
+      };
       responses: {
+        /** @description Created */
+        201: {
+          content: {
+            "application/json": {
+              id: string;
+            };
+          };
+        };
       };
     };
   };
@@ -44,7 +65,20 @@ export interface paths {
 
 export type webhooks = Record<string, never>;
 
-export type components = Record<string, never>;
+export interface components {
+  schemas: {
+    Project: {
+      id: string;
+      name: string;
+      path: string;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
+}
 
 export type $defs = Record<string, never>;
 
